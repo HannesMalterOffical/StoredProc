@@ -9,8 +9,8 @@ using StoredProc.Data;
 namespace StoredProc.Migrations
 {
     [DbContext(typeof(StoredProcDbContext))]
-    [Migration("20211026092144_init")]
-    partial class init
+    [Migration("20221130132814_SearchCarInit")]
+    partial class SearchCarInit
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -19,6 +19,30 @@ namespace StoredProc.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 128)
                 .HasAnnotation("ProductVersion", "5.0.11")
                 .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+
+            modelBuilder.Entity("StoredProc.Models.Car", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasAnnotation("SqlServer:ValueGenerationStrategy", SqlServerValueGenerationStrategy.IdentityColumn);
+
+                    b.Property<string>("FuelType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ModelName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("NumberOfWheeles")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Transmission")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Car");
+                });
 
             modelBuilder.Entity("StoredProc.Models.Employee", b =>
                 {

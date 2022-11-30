@@ -1,0 +1,57 @@
+﻿<body style="padding-top: 10px">
+    <div class="col-xs-8 col-xs-offset-2">
+        <div class="panel-heading">
+            <h3>DynamicSQLInStoredProcedure</h3>
+        </div>
+        <form asp-controller="Car" asp-action="DynamicSQLInStoredProcedure">
+            <div>
+                <label for="ModelName">Model Name</label>
+                <br />
+                <input type="text" name="ModelName" placeholder="Model Name" />
+            </div>
+            <br />
+            <div>
+                <label for="FuelType">Fuel Type</label>
+                <br />
+                <input type="text" name="FuelType" placeholder="Fuel Type" />
+            </div>
+            <br />
+            <div>
+                <label for="Transmission">Transmission</label>
+                <br />
+                <select name="Transmission">
+                    <option value="manual">Manual</option>
+                    <option value="automatic">Automatic</option>
+                </select>
+            </div>
+            <br />
+            <div>
+                <label for="NumberOfWheeles">DynamicSQLInStoredProcedure</label>
+                <br />
+                <input type="number" name="DynamicSQLInStoredProcedure" placeholder="DynamicSQLInStoredProcedure" />
+            </div>
+            <br />
+            <input type="submit" value="DynamicSQLInStoredProcedure" />
+        </form>
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th scope="col">Model Name</th>
+                    <th scope="col">Fuel Type</th>
+                    <th scope="col">Transmission</th>
+                    <th scope="col">NumberOfWheeles</th>
+                </tr>
+            <tbody>
+                    @foreach (var car in Model)
+                    {
+                    <tr>
+                        <td>@car.ModelName</td>
+                        <td>@car.FuelType</td>
+                        <td>@car.Transmission</td>
+                        <td>@car.NumberOfWheeles</td>
+                    </tr>
+                    }
+            </tbody>
+        </table>
+    </div>
+</body>

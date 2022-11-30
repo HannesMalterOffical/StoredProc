@@ -1,10 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using StoredProc.Data;
 using StoredProc.Models;
 
@@ -13,143 +16,264 @@ namespace StoredProc.Controllers
     public class CarsController : Controller
     {
         private readonly StoredProcDbContext _context;
+        public IConfiguration _config { get; }
 
-
-
-        public CarsController(StoredProcDbContext context)
+        public CarsController
+            (
+            StoredProcDbContext context,
+            IConfiguration config
+            )
         {
             _context = context;
+            _config = config;
+
         }
 
-        // GET: Cars
-        public async Task<IActionResult> Index()
-        {
-            return View(await _context.Car.ToListAsync());
-        }
 
-        // GET: Cars/Details/5
-        public async Task<IActionResult> Details(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var car = await _context.Car
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (car == null)
-            {
-                return NotFound();
-            }
-
-            return View(car);
-        }
-
-        // GET: Cars/Create
-        public IActionResult Create()
+        public IActionResult Index()
         {
             return View();
         }
 
-        // POST: Cars/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to, for 
-        // more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,ModelName,FuelType,Transmission,NumberOfWheeles")] Car car)
+        public IEnumerable<Car> SearchResult()
         {
-            if (ModelState.IsValid)
-            {
-                _context.Add(car);
-                await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
-            }
-            return View(car);
+            var result = _context.Car
+                .FromSqlRaw<Car>("spSearchCars")
+                .ToList();
+
+            return result;
         }
 
-        // GET: Cars/Edit/5
-        public async Task<IActionResult> Edit(int? id)
+
+        [HttpGet]
+        public IActionResult DynamicSQL()
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            string connectionStr = _config.GetConnectionString("DefaultConnection");
 
-            var car = await _context.Car.FindAsync(id);
-            if (car == null)
+            using (SqlConnection con = new SqlConnection(connectionStr))
             {
-                return NotFound();
-            }
-            return View(car);
-        }
-
-        // POST: Cars/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to, for 
-        // more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,ModelName,FuelType,Transmission,NumberOfWheeles")] Car car)
-        {
-            if (id != car.Id)
-            {
-                return NotFound();
-            }
-
-            if (ModelState.IsValid)
-            {
-                try
+                SqlCommand cmd = new SqlCommand();
+                cmd.Connection = con;
+                cmd.CommandText = "dbo.spSearchCars";
+                cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                con.Open();
+                SqlDataReader sdr = cmd.ExecuteReader();
+                List<Car> model = new List<Car>();
+                while (sdr.Read())
                 {
-                    _context.Update(car);
-                    await _context.SaveChangesAsync();
+                    var details = new Car();
+                    details.ModelName = sdr["ModelName"].ToString();
+                    details.FuelType = sdr["FuelType"].ToString();
+                    details.Transmission = sdr["Transmission"].ToString();
+                    details.NumberOfWheeles = 4;
+                    model.Add(details);
                 }
-                catch (DbUpdateConcurrencyException)
+                return View(model);
+            }
+        }
+
+
+        /// <returns></returns>
+        [HttpPost]
+        public IActionResult DynamicSQL(string ModelName, string FuelType, string Transmission, int NumberOfWheeles)
+        {
+            string connectionStr = _config.GetConnectionString("DefaultConnection");
+
+            using (SqlConnection con = new SqlConnection(connectionStr))
+            {
+                SqlCommand cmd = new SqlCommand();
+                cmd.Connection = con;
+                cmd.CommandText = "dbo.spSearchCars";
+                cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                if (ModelName != null)
                 {
-                    if (!CarExists(car.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
+                    SqlParameter param_fn = new SqlParameter("@ModelName", ModelName);
+                    cmd.Parameters.Add(param_fn);
                 }
-                return RedirectToAction(nameof(Index));
+                if (FuelType != null)
+                {
+                    SqlParameter param_ln = new SqlParameter("@FuelType", FuelType);
+                    cmd.Parameters.Add(param_ln);
+                }
+                if (Transmission != null)
+                {
+                    SqlParameter param_g = new SqlParameter("@Transmission", Transmission);
+                    cmd.Parameters.Add(param_g);
+                }
+                if (NumberOfWheeles != 0)
+                {
+                    SqlParameter param_s = new SqlParameter("@NumberOfWheeles", NumberOfWheeles);
+                    cmd.Parameters.Add(param_s);
+                }
+                con.Open();
+                SqlDataReader sdr = cmd.ExecuteReader();
+                List<Car> model = new List<Car>();
+                while (sdr.Read())
+                {
+                    var details = new Car();
+                    details.ModelName = sdr["ModelName"].ToString();
+                    details.FuelType = sdr["FuelType"].ToString();
+                    details.Transmission = sdr["Transmission"].ToString();
+                    details.NumberOfWheeles = 4;
+                    model.Add(details);
+                }
+                return View(model);
             }
-            return View(car);
         }
 
-        // GET: Cars/Delete/5
-        public async Task<IActionResult> Delete(int? id)
+        [HttpGet]
+        public IActionResult SearchWithDynamics()
         {
-            if (id == null)
+            string connectionStr = _config.GetConnectionString("DefaultConnection");
+
+            using (SqlConnection con = new SqlConnection(connectionStr))
             {
-                return NotFound();
+                SqlCommand cmd = new SqlCommand();
+                cmd.Connection = con;
+                cmd.CommandText = "dbo.spSearchCarsGoodDynamicSQL";
+                cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                con.Open();
+                SqlDataReader sdr = cmd.ExecuteReader();
+                List<Car> model = new List<Car>();
+                while (sdr.Read())
+                {
+                    var details = new Car();
+                    details.ModelName = sdr["ModelName"].ToString();
+                    details.FuelType = sdr["FuelType"].ToString();
+                    details.Transmission = sdr["Transmission"].ToString();
+                    details.NumberOfWheeles = 4;
+                    model.Add(details);
+                }
+                return View(model);
             }
+        }
 
-            var car = await _context.Car
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (car == null)
+        [HttpPost]
+        public IActionResult SearchWithDynamics(string ModelName, string FuelType, string Transmission, int NumberOfWheeles)
+        {
+            string connectionStr = _config.GetConnectionString("DefaultConnection");
+
+            using (SqlConnection con = new SqlConnection(connectionStr))
             {
-                return NotFound();
+                SqlCommand cmd = new SqlCommand();
+                cmd.Connection = con;
+                cmd.CommandText = "dbo.spSearchCarsGoodDynamicSQL";
+                cmd.CommandType = System.Data.CommandType.StoredProcedure;
+
+                StringBuilder stringBuilder = new StringBuilder("Select * from Employees where 1 = 1");
+
+                if (ModelName != null)
+                {
+                    stringBuilder.Append(" AND ModelName=@ModelName");
+                    SqlParameter param_fn = new SqlParameter("@ModelName", ModelName);
+                    cmd.Parameters.Add(param_fn);
+                }
+                if (FuelType != null)
+                {
+                    stringBuilder.Append(" AND FuelType=@FuelType");
+                    SqlParameter param_ln = new SqlParameter("@FuelType", FuelType);
+                    cmd.Parameters.Add(param_ln);
+                }
+                if (Transmission != null)
+                {
+                    stringBuilder.Append(" AND Transmission=@Transmission");
+                    SqlParameter param_g = new SqlParameter("@Transmission", Transmission);
+                    cmd.Parameters.Add(param_g);
+                }
+                if (NumberOfWheeles != 0)
+                {
+                    stringBuilder.Append(" AND NumberOfWheeles=@NumberOfWheeles");
+                    SqlParameter param_s = new SqlParameter("@NumberOfWheeles", NumberOfWheeles);
+                    cmd.Parameters.Add(param_s);
+                }
+                con.Open();
+                SqlDataReader sdr = cmd.ExecuteReader();
+                List<Car> model = new List<Car>();
+                while (sdr.Read())
+                {
+                    var details = new Car();
+                    details.ModelName = sdr["ModelName"].ToString();
+                    details.FuelType = sdr["FuelType"].ToString();
+                    details.Transmission = sdr["Transmission"].ToString();
+                    details.NumberOfWheeles = 4;
+                    model.Add(details);
+                }
+                return View(model);
             }
-
-            return View(car);
         }
 
-        // POST: Cars/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
+        [HttpGet]
+        public IActionResult DynamicSQLInStoredProcedure()
         {
-            var car = await _context.Car.FindAsync(id);
-            _context.Car.Remove(car);
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+            string connectionStr = _config.GetConnectionString("DefaultConnection");
+
+            using (SqlConnection con = new SqlConnection(connectionStr))
+            {
+                SqlCommand cmd = new SqlCommand();
+                cmd.Connection = con;
+                cmd.CommandText = "dbo.spSearchCarsGoodDynamicSQL";
+                cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                con.Open();
+                SqlDataReader sdr = cmd.ExecuteReader();
+                List<Car> model = new List<Car>();
+                while (sdr.Read())
+                {
+                    var details = new Car();
+                    details.ModelName = sdr["ModelName"].ToString();
+                    details.FuelType = sdr["FuelType"].ToString();
+                    details.Transmission = sdr["Transmission"].ToString();
+                    details.NumberOfWheeles = 4;
+                    model.Add(details);
+                }
+                return View(model);
+            }
         }
 
-        private bool CarExists(int id)
+        [HttpPost]
+        public IActionResult DynamicSQLInStoredProcedure(string ModelName, string FuelType, string Transmission, int NumberOfWheeles)
         {
-            return _context.Car.Any(e => e.Id == id);
+            string connectionStr = _config.GetConnectionString("DefaultConnection");
+
+            using (SqlConnection con = new SqlConnection(connectionStr))
+            {
+                SqlCommand cmd = new SqlCommand();
+                cmd.Connection = con;
+                cmd.CommandText = "dbo.spSearchCarsGoodDynamicSQL";
+                cmd.CommandType = System.Data.CommandType.StoredProcedure;
+                if (ModelName != null)
+                {
+                    SqlParameter param = new SqlParameter("@ModelName", ModelName);
+                    cmd.Parameters.Add(param);
+                }
+                if (FuelType != null)
+                {
+                    SqlParameter param = new SqlParameter("@FuelType", FuelType);
+                    cmd.Parameters.Add(param);
+                }
+                if (Transmission != null)
+                {
+                    SqlParameter param = new SqlParameter("@Transmission", Transmission);
+                    cmd.Parameters.Add(param);
+                }
+                if (NumberOfWheeles != 0)
+                {
+                    SqlParameter param = new SqlParameter("@NumberOfWheeles", NumberOfWheeles);
+                    cmd.Parameters.Add(param);
+                }
+                con.Open();
+                SqlDataReader sdr = cmd.ExecuteReader();
+                List<Car> model = new List<Car>();
+                while (sdr.Read())
+                {
+                    var details = new Car();
+                    details.ModelName = sdr["ModelName"].ToString();
+                    details.FuelType = sdr["FuelType"].ToString();
+                    details.Transmission = sdr["Transmission"].ToString();
+                    details.NumberOfWheeles = 4;
+                    model.Add(details);
+                }
+                return View(model);
+            }
         }
     }
 }
