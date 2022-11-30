@@ -11,7 +11,7 @@ namespace StoredProc.Data
 
         public DbSet<Employee> Employee { get; set; }
 
-        public DbSet<StoredProc.Models.Car> Car { get; set; }
+        public DbSet<Car> Car { get; set; }
 
     }
 }
